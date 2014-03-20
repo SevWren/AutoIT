@@ -247,13 +247,3 @@ Global $aCoord
             "Width: " & $ffxipos[2] & @CRLF & _
             "Height: " & $ffxipos[3])
       EndFunc
-
-
-
-
-;x,y coord of top left corner of search area
-; 1268, 678
-;  x,y coord of bottom right corner of search area
-; 1274, 684
-; FFXI Window info
-; X-Pos: 82,Y-Pos: 1,Width: 1288,Height: 747
