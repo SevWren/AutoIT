@@ -1,0 +1,260 @@
+
+;FFXI fisher written in SciTE Version 3.3.7
+;Running raw uncompiled script relies
+;on the AutoIT3 program to be installed.
+;http://www.autoitscript.com/
+
+;~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+;Notes and Usage
+; to setup script 
+;
+; replace any "title of your ffxi window"
+; ; with the title of your ffxi window. 
+; when using windower, the title will be your character's
+; name that is logged in
+;
+; Find the pixel colors of the blue and golden
+; arrows that show up when fish is on the line
+;
+; Format Example - 0xFFE55F color of gold arrow pointing west
+; Use those in the PixelSearch function
+;
+; Determine and area on screen you want to search in
+; to detect if arrows pointing east or west are visible
+; 
+; Customize the PixelSearch function with those coordinates
+;
+;
+; Script will start reeling in fish as soon 
+; as first blue or golden arrows are detected when
+; a fish is on the line
+;
+; Script detects the keypress ENTER as a fish you chose to catch
+; Script sleeps for period of time after ENTER is pressed and then
+; Sends keypress ALT+1 to ffxi window. (In game macro alt+1 should be /fish)
+;
+; Script detects ESCAPE as fish you let go
+; Script sleeps for a shorter period of time
+; Sends keypress ALT+1 to ffxi window
+; 
+; While a fish is not on the line pressing F9 will send alt+1 to ffxi
+; While a fish is not on the line pressing F10 will pause script 15 seconds
+; While a fish is not on the line pressing F11 will exit script
+;~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+;When running script locally in SciTE (AutoITeditor)
+;without being compiled into an .EXE, these seperate
+;functions are allocated to be called externally
+#include <MsgBoxConstants.au3>
+#include <Misc.au3>
+;~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+;~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+;local options for AutoIT
+Opt("SendKeyDownDelay", 100); any key sent is held down for 100 ms
+Opt("SendKeyDelay", 100)
+Opt("SendAttachMode", 0) ;0=don't attach, 1=do attach
+;~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+;~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+;these are a work in progress as AutoIT doesn't
+;handle capturing hotkey keypresses the way 
+;the function _IsPressed does
+HotKeySet("+d", "_exit") ; shift + d  exits script
+HotKeySet("+i", "_showinputinfo")  ; not finished.
+;will show gui with stats on how many key strokes sent
+;~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+;~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+;Declare Variables
+Global $hDLL = DllOpen("user32.dll")
+Global $timespressedA = 0
+Global $timespresseD = 0
+Global $aCoord
+;~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+	;used to always move client to dedicated coordinates
+	; x81, y1 - will vary depending on your monitor resolution and
+	; resolution you have ffxi at. Then switches to FFXI window
+	
+	Winmove("title of your ffxi window","",81,1)
+	WinActivate("title of your ffxi window")
+
+
+;~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Begin Main Loop
+		;main loop
+		;cycles between functions to detect arrows on screen
+		;and calls appropriate functions to send keys to ffxi client
+		
+		while 1 = 1
+				_checkstambluewest()
+				_checkstamgoldwest()
+				_checkstamblueeast()
+				_checkstamgoldeast()
+
+		If _IsPressed("1B", $hDLL) Then  ;call function to restart loop after escape pressed
+		_restartfish()
+		EndIf
+
+		If _IsPressed("0D", $hDLL) Then ;call function to restart loop after enter pressed
+			_restartfish()
+		EndIf
+
+
+		If _IsPressed("78", $hDLL) Then ;call function to send alt+1 to ffxi - bound to f9
+		_startfish()
+		EndIf
+
+		If _IsPressed("79", $hDLL) Then ;If f10 is pressed then sleep 15 seconds
+		sleep(15000)
+		EndIf
+
+		If _IsPressed("7A", $hDLL) Then ;If f11 is pressed then terminate script
+			Exit
+		EndIf
+
+		WEnd
+
+;~~~~~~~~~~~~~~~~~~~~~~~~~~~~ End Main Loop
+
+
+
+	;puts ffxi window on top
+	;sends alt + 1 to ffxi - the macro in ffxi /fish  is bound to alt+1 in game
+	
+			func _startfish()
+			
+				;sends alt + 1 to ffxi - the macro in ffxi /fish  is bound to alt+1 in game
+				
+				WinActivate("title of your ffxi window")
+				sleep(200) ;sleep 200ms
+				send("!1") ;send ALT+1 to active window
+				sleep(2000);sleep 2 seconds
+			EndFunc
+
+
+			;waits 10 seconds then puts ffxi window on top
+			;sends alt + 1 to ffxi - the macro in ffxi /fish  is bound to alt+1 in game
+			
+			func _restartfish()
+			Sleep(10000) ;sleep 10 seconds
+			
+			WinActivate("title of your ffxi window") ;activates window with title "yourcharactername"
+			
+			send("!1") ;send ALT+1 to active window
+			sleep(2000) ;sleep 2 seconds
+			EndFunc
+
+			func _checkstambluewest() ;check if blue arrow pointing west is on screen
+			
+			;0xFFE55F  color of gold arrow pointing west
+			;0x93A3BD  color of blue arrow pointing west
+			;these will vary depending on your ffxi color settings
+			
+			$aCoord = PixelSearch(476, 312, 484, 319, 0x8D91AF,10) ;checks for pixel inside coordinates
+			If Not @error Then
+				_pressleft() ;if arrow is detected, calls function to drain stamina
+			EndIf
+			EndFunc
+
+
+			func _checkstamgoldwest() ;check if gold arrow pointing west is on screen
+			
+			;0xFFE55F  gold arrow pointing west
+			;0x93A3BD  blue arrow pointing west
+			;these will vary depending on your ffxi color settings
+			
+			$aCoord = PixelSearch(476, 312, 484, 319, 0xFFE479,10)
+			If Not @error Then
+				_pressleft() ;if arrow is detected, calls function to drain stamina
+			EndIf
+			EndFunc
+
+			Func _checkstamblueeast() ;check if blue arrow pointing east is on screen
+			
+			;0xFFE479 color of gold arrow pointing east
+			;0x8D91AF color of blue arrow pointing east
+			;these will vary depending on your ffxi color settings
+			
+			$aCoord = PixelSearch(981, 308, 986, 313, 0x8D91AF,10)
+			If Not @error Then ;if arrow is detected, calls function to drain stamina
+				_pressright()
+			EndIf
+			EndFunc
+
+
+			func _checkstamgoldeast() ;check if gold arrow pointing east is on screen
+
+			;0xFFE479 color of gold arrow pointing east
+			;0x8D91AF color of blue arrow pointing east
+			;these will vary depending on your ffxi color settings
+
+			$aCoord = PixelSearch(981, 308, 986, 313, 0xFFE479,10)
+			
+			;checks area onscreen for the pixel 0xFFE479 which is the gold arrow
+			
+			If Not @error Then ;if arrow is detected, calls function to drain stamina
+				_pressright()
+			EndIf
+			EndFunc
+
+
+			func _pressright() ;handles draining stamina
+				;WinActivate("title of your ffxi window") optional
+				
+				send("d")
+				sleep(55)
+				;$timespresseD = $timespresseD +1
+			EndFunc
+
+			func _pressleft() ;;handles draining stamina
+			
+				;WinActivate("title of your ffxi window") optional
+				send("a") ;send the keystroke 'a' to active window
+				sleep(55) ;sleep 55ms
+				
+				;$timespressedA = $timespressedA +1 stat gathering workinprogress
+			EndFunc
+
+      func _exit() ;when called, will terminate script
+	    
+	    DllClose($hDLL)
+	    
+	    Exit ;terminates script
+      
+      EndFunc
+
+
+
+
+			func _showinputinfo() ;not finished.  will show a GUI with all input info sent to ffxi
+				MsgBox("","","A pressed " & $timespressedA & " times" & " D pressed " & $timespresseD & " times")
+			EndFunc
+
+
+
+
+;extra function to find out the exact dimensions of ffxi
+;and where it is located on screen
+;results are shown in a popup GUI
+
+      func _ffxiwininfo()
+      local $ffxipos = WinGetPos("title of your ffxi window")
+
+      MsgBox("", "", "X-Pos: " & $ffxipos[0] & @CRLF & _
+            "Y-Pos: " & $ffxipos[1] & @CRLF & _
+            "Width: " & $ffxipos[2] & @CRLF & _
+            "Height: " & $ffxipos[3])
+      EndFunc
+
+
+
+
+;x,y coord of top left corner of search area
+; 1268, 678
+;  x,y coord of bottom right corner of search area
+; 1274, 684
+; FFXI Window info
+; X-Pos: 82,Y-Pos: 1,Width: 1288,Height: 747
