@@ -1,4 +1,4 @@
 AutoIT
 ======
 
-AutoIT
+Random AutoIT script Depository
