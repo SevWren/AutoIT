@@ -1,0 +1,398 @@
+#include <MsgBoxConstants.au3>
+#include <Misc.au3>
+#include <TrayConstants.au3>
+#include <GUIConstantsEx.au3>
+HotKeySet("+d", "_exit") ; shift + d  exits script
+;MsgBox("","","hour is " & @HOUR & " minutes are " & @MIN & " .",10)
+Opt("SendKeyDownDelay", 50); any key sent is held down for 100 ms
+Opt("SendKeyDelay", 50)
+Opt("SendAttachMode", 0) ;0=don't attach, 1=do attach
+Global $runonce = 1
+Global $hDLL = DllOpen("user32.dll")
+Global $aCoord
+Global $NameOfPlayerOpen = 0
+Global $timespressedA = 0
+Global $timespresseD = 0
+Global $hooked = 0
+Global $detected = 0
+Global $timehooked = 0
+Global $timeonline = 0
+Global $timedrained1 = 0
+Global $timedrained2 = 0
+Global $timex = 133 ;dot when single digits
+Global $timey = 640
+Global $timex1 = 141
+Global $timey1 = 640
+;Global $iColor = 0xF2EDE4 ;PixelGetColor($timex, $timey)
+;Global $2Color = 0xF2EDE4 ;PixelGetColor(129, 601) for NameOfPlayer
+Global $iColor = 0xD2D1D0 ;PixelGetColor($timex, $timey) for NameOfPlayer
+;Global $iColor = 0xD8D8D7 ;PixelGetColor($timex, $timey) backup
+Global $2Color = 0xD6D7D5 ;PixelGetColor(129, 601) for NameOfPlayer
+
+;0xD9D8D7 double digits in beau glacier pond
+;0xF8F2E8 color of dot in time double digits NameOfPlayer
+
+;0xD8D8D7 129,601
+;0xDADBDA 129,601
+;0xDBDBDA
+;0xDCDCDB
+
+
+;pixel checksums
+;blue arrow  0xA2B7DA
+;blue arrow  0xBACDE6
+;blue arrow   0x7982A9
+;blue arrow  0x727999
+
+WinMove("NameOfPlayer", "", 81, 1)
+WinActivate("NameOfPlayer")
+
+While 1 = 1
+	_quittimer()
+
+
+	$aCoord = PixelSearch(673, 180, 673, 180, 0xFCFCFB, 10) ; check if stam bar active by txt
+	If Not @error Then
+		$detected = 1
+		$timehooked = @SEC
+		WinActivate("NameOfPlayer")
+	EndIf
+
+
+	;run 2 check to see if stam bar instantly 0
+	$aCoord = PixelSearch(673, 181, 673, 181, 0x777977, 10) ;detects if stam bar instantly 0
+	If Not @error Then
+		$detected = 1
+		$timehooked = @SEC
+		WinActivate("NameOfPlayer")
+	EndIf
+
+
+	While $detected = 1
+		;TrayTip("","realing fish in",0)
+		_checkstamblueeast()
+		_checkstambluewest()
+		_checkstamgoldeast()
+		_checkstamgoldwest()
+
+		If $timehooked <> @SEC Then
+			$timeonline = $timeonline + 1
+			;TrayTip("","" & $timeonline,0)
+		EndIf
+		;	672, 162  0xFF9898 ; with stam by detecting bar color
+		;	672, 162  0x394242 ; without stam by detecting bar color
+		; 	669, 155  0x777878 ; without stam by detecting color of F
+
+		;run 2 checks to see if fish bar empty
+		$aCoord = PixelSearch(673, 181, 673, 181, 0x777977, 10) ;fish bar empty
+		If Not @error Then
+			_fishstamdrained() ;decide what to do when stam is drained
+		EndIf
+		$aCoord = PixelSearch(673, 181, 673, 181, 0x777977, 10) ;fish bar empty
+		If Not @error Then
+			_fishstamdrained() ;decide what to do when stam is drained
+		EndIf
+
+	WEnd
+
+	_detectnofish() ;random check no bait msg on screen
+
+	;if @sec > "31" And @sec < "41" Then
+	;	_detectnobait()
+	;EndIf
+
+	;if @SEC = random(0,60) Then
+	;   MsgBox("","","random idle check",1)
+	;  WinActivate("NameOfPlayer")
+	; sleep 1000
+	;_nocatch()
+	;EndIf
+	If @SEC = Random(0, 5) Then
+		_randomrestartfish()
+	EndIf
+WEnd
+
+Func _randomrestartfish()
+	WinActivate("NameOfPlayer")
+	Send("!1") ; send the keystroke  ALT+1
+EndFunc   ;==>_randomrestartfish
+
+
+Func _fishstamdrained() ;detect what to do with fish
+	;Exit ; <------------- take out if you want to autofish
+	If $timeonline < 9000 Then
+		;MsgBox("","","Time on the line was  " & $timeonline)
+		TrayTip("", "Timer was " & $timeonline & " Throwing Away", 1)
+		$timehooked = 0
+		$timeonline = 0
+		$detected = 0
+		WinActivate("NameOfPlayer")
+		Send("{ESC}")
+		Send("{ESC}")
+		Send("{ESC}")
+		If $runonce = 1 Then
+			Exit
+		EndIf
+		Sleep(7000)
+
+		_detectnofish()
+		;_restartnofish()
+	EndIf
+	If $timeonline > 9001 Then ;And $timeonline < 60000
+
+		;Exit ; <------------- take out if you want to autofish
+		;MsgBox("","","Time on the line was  " & $timeonline)
+		TrayTip("", "Timer was " & $timeonline & " Keeping", 1)
+		$timehooked = 0
+		$timeonline = 0
+		$detected = 0
+		WinActivate("NameOfPlayer")
+		Send("{ENTER}")
+		Send("{ENTER}")
+		If $runonce = 1 Then
+			Exit
+		EndIf
+		MouseMove(Random(300, 301, 0), Random(400, 401, 0), 10)
+		Sleep(7000)
+		_detectnofish()
+		;_restartnofish()
+	EndIf
+
+EndFunc   ;==>_fishstamdrained
+
+Func _checkstambaractive() ; run 2 checks to see if stam bar is active
+	$aCoord = PixelSearch(673, 180, 673, 180, 0xFCFCFB, 10) ; check if stam bar active by txt
+	If Not @error Then
+		$detected = 1
+		$timehooked = @SEC
+		WinActivate("NameOfPlayer")
+	EndIf
+
+	$aCoord = PixelSearch(673, 180, 673, 180, 0xFCFCFB, 10) ; check if stam bar active by txt
+	If Not @error Then
+		$detected = 1
+		$timehooked = @SEC
+		WinActivate("NameOfPlayer")
+	EndIf
+EndFunc   ;==>_checkstambaractive
+
+
+Func _detectkeypresses()
+
+	;If _IsPressed("1B", $hDLL) Then  ;restart fish after escape pressedD
+	;_restartfish()
+	;EndIf
+	;If _IsPressed("0D", $hDLL) Then ;restart after enter pressed
+	;		_restartfish()
+	;	EndIf
+	If _IsPressed("78", $hDLL) Then ;start fishing after f9
+		_startfish()
+	EndIf
+	If _IsPressed("79", $hDLL) Then ;press f10 sleep 30 seconds
+		TrayTip("", "pressed f10 sleeping", 1, 2)
+		Sleep(Random(25000, 30000))
+	EndIf
+	If _IsPressed("7A", $hDLL) Then ;press f11 exit
+		Exit
+	EndIf
+
+
+EndFunc   ;==>_detectkeypresses
+
+
+
+
+
+;puts ffxi window on top
+;sends alt + 1 to ffxi - the macro in ffxi /fish  is bound to alt+1 in game
+Func _startfish()
+	;sends alt + 1 to ffxi - the macro in ffxi /fish  is bound to alt+1 in game
+	WinActivate("NameOfPlayer")
+	Sleep(Random(200, 250))
+	Send("!1")
+	Sleep(Random(2000, 2400))
+EndFunc   ;==>_startfish
+
+
+;waits 10 seconds then puts ffxi window on top
+;sends alt + 1 to ffxi - the macro in ffxi /fish  is bound to alt+1 in game
+
+
+Func _checkstambluewest() ;check if blue arrow pointing west is on screen
+	;0xFFE55F  color of gold arrow pointing west - this will vary depending on your ffxi color settings
+	;0x93A3BD  color of blue arrow pointing west - this will vary depending on your ffxi color settings
+	$aCoord = PixelSearch(476, 312, 484, 319, 0x8D91AF, 10)
+	If Not @error Then
+		_pressleft() ;if arrow ised, calls function to drain stamina
+	EndIf
+EndFunc   ;==>_checkstambluewest
+
+
+Func _checkstamgoldwest() ;check if gold arrow pointing west is on screen
+	;0xFFE55F  gold arrow pointing west - this will vary depending on your ffxi color settings
+	;0x93A3BD  blue arrow pointing west - this will vary depending on your ffxi color settings
+	$aCoord = PixelSearch(476, 312, 484, 319, 0xFFE479, 10)
+	If Not @error Then
+		_pressleft() ;if arrow is detected, calls function to drain stamina
+	EndIf
+EndFunc   ;==>_checkstamgoldwest
+
+Func _checkstamblueeast() ;check if blue arrow pointing east is on screen
+	;0xFFE479 color of gold arrow pointing east - this will vary depending on your ffxi color settings
+	;0x8D91AF color of blue arrow pointing east  - this will vary depending on your ffxi color settings
+	$aCoord = PixelSearch(981, 308, 986, 313, 0x8D91AF, 10)
+	If Not @error Then ;if arrow is detected, calls function to drain stamina
+		_pressright()
+	EndIf
+EndFunc   ;==>_checkstamblueeast
+
+
+Func _checkstamgoldeast() ;check if gold arrow pointing east is on screen
+
+	;0xFFE479 color of gold arrow pointing east - this will vary depending on your ffxi color settings
+	;0x8D91AF color of blue arrow pointing east - this will vary depending on your ffxi color settings
+	$aCoord = PixelSearch(981, 308, 986, 313, 0xFFE479, 10)
+	;checks area onscreen for the pixel 0xFFE479 which is the gold arrow
+	If Not @error Then ;if arrow is detected, calls function to drain stamina
+		_pressright()
+	EndIf
+EndFunc   ;==>_checkstamgoldeast
+
+
+Func _pressright() ;handles draining stamina
+	Send("d")
+	;$timespresseD = $timespresseD +1
+EndFunc   ;==>_pressright
+
+Func _pressleft() ;;handles draining stamina
+	;WinActivate("NameOfPlayer")
+	Send("a")
+	;$timespressedA = $timespressedA +1
+EndFunc   ;==>_pressleft
+
+Func _restartfish()
+
+	Sleep(Random(12000, 13000))
+	WinActivate("NameOfPlayer") ;activates window with title "yourcharactername"
+	Send("!1") ; send the keystroke  ALT+1
+	MsgBox("", "", "in _restart fish function", 1)
+	WinActivate("NameOfPlayer")
+EndFunc   ;==>_restartfish
+
+Func _detectnofish()
+	WinActivate("NameOfPlayer")
+
+	$aCoord = PixelSearch($timex, $timey, $timex, $timey, $iColor, 10)
+	If Not @error Then
+		_nocatch()
+	EndIf
+	Sleep(100)
+	$aCoord = PixelSearch($timex, $timey, $timex, $timey, $iColor, 20)
+	If Not @error Then
+		_nocatch()
+	EndIf
+
+	$aCoord = PixelSearch($timex1, $timey1, $timex1, $timey1, $2Color, 10)
+	If Not @error Then
+		_nocatch()
+	EndIf
+
+	$aCoord = PixelSearch($timex1, $timey1, $timex1, $timey1, $2Color, 20)
+	If Not @error Then
+		_nocatch()
+	EndIf
+EndFunc   ;==>_detectnofish
+
+Func _nocatch()
+	Sleep(Random(1000, 2000))
+	WinActivate("NameOfPlayer")
+	Send("!1")
+	MsgBox("", "", "Detected being Idle", 1)
+	WinActivate("NameOfPlayer")
+	;TrayTip("","Detected being Idle",1,0)
+	Sleep(500)
+EndFunc   ;==>_nocatch
+
+Func _restartnofish()
+	Sleep(9000)
+	WinActivate("NameOfPlayer") ;activates window with title "yourcharactername"
+	Send("!1") ; send the keystroke  ALT+1
+	MsgBox("", "", "Restarting Fish", 1)
+	WinActivate("NameOfPlayer")
+EndFunc   ;==>_restartnofish
+
+
+
+;	672, 162  0xFF9898 ; with stam
+;	672, 162  0x394242 ; without stam
+
+Func _detectnobait()
+	WinActivate("NameOfPlayer")
+	$aCoord = PixelSearch(106, 720, 106, 720, 0xFFFFFF, 15)
+	If Not @error Then
+		$aCoord = PixelSearch(421, 725, 421, 725, 0xFFFFFF, 15)
+		If Not @error Then
+			TrayTip("Detected!!", "NO BAIT!", 10)
+			_equipbait()
+		EndIf
+	EndIf
+	;y 106, 720
+	;o 116, 709
+	;h 382, 719
+	;o 394, 718
+	;o 404, 718
+	;k 410, 718
+	;period  421, 725
+EndFunc   ;==>_detectnobait
+
+Func _equipbait()
+	WinActivate("NameOfPlayer")
+	Send("^E")
+	Sleep(3000)
+	Send("{enter}")
+	Sleep(3000)
+	Send("{enter}")
+	Sleep(3000)
+	Send("{esc}")
+	Sleep(3000)
+EndFunc   ;==>_equipbait
+
+Func _quittimer()
+	If @HOUR = 03 And @MIN = 00 Then
+		WinActivate("NameOfPlayer")
+		Send("/warp")
+		Sleep(1000)
+		Send("{enter}")
+		Send("{enter}")
+		Sleep(15000)
+		Send("/warp")
+		Sleep(1000)
+		Sleep(15000)
+		Exit
+	EndIf
+EndFunc   ;==>_quittimer
+
+Func _exit() ;when called, will terminate script
+	DllClose($hDLL)
+	Exit
+EndFunc   ;==>_exit
+
+
+Func _ffxiwininfo()
+	Global $ffxipos = WinGetPos("NameOfPlayer")
+
+	MsgBox("", "", "X-Pos: " & $ffxipos[0] & @CRLF & _
+			"Y-Pos: " & $ffxipos[1] & @CRLF & _
+			"Width: " & $ffxipos[2] & @CRLF & _
+			"Height: " & $ffxipos[3])
+EndFunc   ;==>_ffxiwininfo
+
+
+
+
+;x,y coord of top left corner of search area
+; 1268, 678
+;  x,y coord of bottom right corner of search area
+; 1274, 684
+; FFXI Window info
+; X-Pos: 82,Y-Pos: 1,Width: 1288,Height: 747
